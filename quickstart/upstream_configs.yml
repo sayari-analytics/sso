@@ -11,4 +11,9 @@
 - service: nifi
   default:
     from: nifi.sso.localtest.me
-    to: http://nifi.sayari.com:9090/nifi
+    to: http://nifi.sayari.com:9090
+
+- service: schema-registry
+  default:
+    from: schema-registry.sso.localtest.me
+    to: http://schema-registry.sayari.com:9090/
