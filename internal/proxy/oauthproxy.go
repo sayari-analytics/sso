@@ -533,35 +533,47 @@ func (p *OAuthProxy) PingPage(rw http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(rw, "OK")
 }
 
-// ErrorPage renders an error page with a given status code, title, and message.
+// XMLHTTPError returns a simple error response with an error message to the application if the request is an XML request
+func (p *OAuthProxy) XMLHTTPError(rw http.ResponseWriter, req *http.Request, code int, err error) {
+	remoteAddr := getRemoteAddr(req)
+	logger := log.NewLogEntry().WithRemoteAddress(remoteAddr)
+
+	jsonError := struct {
+		Error error `json:"error"`
+	}{
+		Error: err,
+	}
+
+	jsonBytes, err := json.Marshal(jsonError)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	logger.WithHTTPStatus(code).WithRequestURI(req.URL.String()).Error(err, "error serving XMLHTTP request")
+	rw.Header().Set("Content-Type", "application/json")
+	rw.Write(jsonBytes)
+}
+
 func (p *OAuthProxy) ErrorPage(rw http.ResponseWriter, req *http.Request, code int, title string, message string) {
 	if p.isXMLHTTPRequest(req) {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(code)
-		err := json.NewEncoder(rw).Encode(struct {
-			Error string `json:"error"`
-		}{
-			Error: message,
-		})
-		if err != nil {
-			io.WriteString(rw, err.Error())
-		}
-	} else {
-		logger := log.NewLogEntry()
-		logger.WithHTTPStatus(code).WithPageTitle(title).WithPageMessage(message).Info(
-			"error page")
-		rw.WriteHeader(code)
-		t := struct {
-			Code    int
-			Title   string
-			Message string
-		}{
-			Code:    code,
-			Title:   title,
-			Message: message,
-		}
-		p.templates.ExecuteTemplate(rw, "error.html", t)
+		p.XMLHTTPError(rw, req, code, errors.New(message))
+		return
 	}
+
+	logger.WithHTTPStatus(code).WithPageTitle(title).WithPageMessage(message).Info(
+		"error page")
+	rw.WriteHeader(code)
+	t := struct {
+		Code    int
+		Title   string
+		Message string
+	}{
+		Code:    code,
+		Title:   title,
+		Message: message,
+	}
+	p.templates.ExecuteTemplate(rw, "error.html", t)
 }
 
 // IsWhitelistedRequest cheks that proxy host exists and checks the SkipAuthRegex
@@ -608,9 +620,12 @@ func (p *OAuthProxy) OAuthStart(rw http.ResponseWriter, req *http.Request, tags 
 	// The proxy redirects to the authenticator, and provides it with redirectURI (which points
 	// back to the sso proxy).
 	logger := log.NewLogEntry()
+	remoteAddr := getRemoteAddr(req)
 
 	if p.isXMLHTTPRequest(req) {
-		p.ErrorPage(rw, req, http.StatusUnauthorized, "Unauthorized", "user not authorized")
+		logger.WithRemoteAddress(remoteAddr).Error("aborting start of oauth flow on XMLHTTP request")
+		p.XMLHTTPError(rw, req, http.StatusUnauthorized)
+		return
 	}
 
 	requestURI := req.URL.String()
