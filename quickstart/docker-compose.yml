@@ -25,7 +25,7 @@ services:
     entrypoint: /bin/sso-proxy
     environment:
       # Allow any google account to log in for demo purposes
-      - EMAIL_DOMAIN=*
+      - EMAIL_DOMAIN=sayarianalytics.com,sayari.com
 
       - UPSTREAM_CONFIGS=/sso/upstream_configs.yml
       - PROVIDER_URL=http://sso-auth.localtest.me
@@ -71,7 +71,7 @@ services:
       ./env
     environment:
       # Allow any google account to log in for demo purposes
-      - SSO_EMAIL_DOMAIN=*
+      - SSO_EMAIL_DOMAIN=sayarianalytics.com,sayari.com
 
       - HOST=sso-auth.localtest.me
       - REDIRECT_URL=http://sso-auth.localtest.me

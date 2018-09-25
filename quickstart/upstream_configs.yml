@@ -7,3 +7,8 @@
   default:
     from: hello-world.sso.localtest.me
     to: http://hello-world/
+
+- service: nifi
+  default:
+    from: nifi.sso.localtest.me
+    to: http://nifi.sayari.com:9090/nifi
